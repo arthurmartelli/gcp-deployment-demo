@@ -2,14 +2,14 @@
 
 # Reusable Demo Framework =====================================================
 
-# Configuration & Defaults -----------------------------------------------------
+# Configuration & Defaults ----------------------------------------------------
 INTERACTIVE="${INTERACTIVE:-false}"
 RECORD="${RECORD:-false}"
 NO_ANIMATION="${NO_ANIMATION:-false}"
 OUTPUT_FILE="${OUTPUT_FILE:-demos/demo.cast}"
 WAIT="${WAIT:-1}"
 
-# Help & Argument Parsing ------------------------------------------------------
+# Help & Argument Parsing -----------------------------------------------------
 demo_help() {
   local script_name="${1:-$0}"
   echo "Usage: $script_name [OPTIONS]"
@@ -25,112 +25,114 @@ demo_help() {
 demo_args() {
   while [[ $# -gt 0 ]]; do
     case $1 in
-    -i | --interactive)
-      INTERACTIVE=true
-      shift
-      ;;
-    -r | --record)
-      RECORD=true
-      shift
-      ;;
-    -n | --no-animation)
-      NO_ANIMATION=true
-      shift
-      ;;
-    -o | --output)
-      OUTPUT_FILE="$2"
-      shift 2
-      ;;
-    -h | --help)
-      demo_help "$0"
-      exit 0
-      ;;
-    *)
-      echo "Unknown option: $1"
-      echo "Use -h or --help for usage information"
-      exit 1
-      ;;
+      -i | --interactive) INTERACTIVE=true;  shift   ;;
+      -r | --record)      RECORD=true;       shift   ;;
+      -n | --no-animation) NO_ANIMATION=true; shift  ;;
+      -o | --output)      OUTPUT_FILE="$2";  shift 2 ;;
+      -h | --help)        demo_help "$0";    exit 0  ;;
+      *)
+        echo "Unknown option: $1"
+        echo "Use -h or --help for usage information"
+        exit 1
+        ;;
     esac
   done
 }
 
 # Core Demo Functions ---------------------------------------------------------
 
-# Function to simulate typing with delays (respects no-animation flag)
+# Primitive: show a hint and block until the user presses a key.
+# Always reads from /dev/tty so it works even when stdin is a pipe,
+# a subshell, or an asciinema --command invocation.
+#   $1  optional hint text shown after ↵ (default: "to continue")
+demo_press_enter() {
+  local hint="${1:-to continue}"
+  printf ' \033[2m[↵ %s]\033[0m' "$hint"
+  read -r -n 1 -s < /dev/tty
+  echo  # move to the next line after the keypress
+}
+
+# Print text with a typewriter animation (or instantly in no-animation mode).
 demo_type() {
   local text="$1"
   local delay="${2:-0.03}"
 
   if [[ "$NO_ANIMATION" == "true" ]]; then
-    # No animation - just print the text immediately
     echo "$text"
   else
-    # Animated typing
     for ((i = 0; i < ${#text}; i++)); do
       printf '%s' "${text:$i:1}"
       sleep "$delay"
     done
-
     sleep "$WAIT"
     echo
   fi
 }
 
-# Wait function - always types, but interactive mode waits for key
+# Type a message, then pause.
+# Interactive: wait for a keypress (shows "to continue" hint).
+# Animated:    sleep for $WAIT seconds.
+# No-animation: just print, no pause.
 demo_wait() {
   local message="$1"
   demo_type "$message"
 
   if [[ "$INTERACTIVE" == "true" ]]; then
-    read -r -n 1 -s
+    demo_press_enter "to continue"
   elif [[ "$NO_ANIMATION" == "false" ]]; then
-    # Skip sleep in no-animation mode
     sleep "$WAIT"
   fi
 }
 
-# Invoke function - always types command, interactive mode has extra waits
+# Type the command with a leading >, run it, then pause.
+# Interactive: "to run" hint before execution, "to continue" hint after.
+# Animated:    sleep before and after execution.
+# No-animation: run immediately, no pauses.
+#
+# stderr is intentionally NOT suppressed — gcloud/kubectl/git write
+# progress and error detail to stderr, and hiding it would confuse viewers.
 demo_invoke() {
   local command="$*"
   demo_type "> $command"
 
   if [[ "$INTERACTIVE" == "true" ]]; then
-    read -r -n 1 -s
+    demo_press_enter "to run"
   elif [[ "$NO_ANIMATION" == "false" ]]; then
     sleep "$WAIT"
   fi
 
-  eval "$command" 2>/dev/null
+  eval "$command"
 
   if [[ "$INTERACTIVE" == "true" ]]; then
-    read -r -n 1 -s
+    demo_press_enter "to continue"
   elif [[ "$NO_ANIMATION" == "false" ]]; then
     sleep "$WAIT"
   fi
 }
 
-# Dummy run_demo function to prompt user definition
+# Dummy placeholder — the sourcing script must override this.
 demo_run() {
   echo "Please define a demo_run() function in your script to run the demo"
   exit 1
 }
 
-# Run the demo framework, which calls the user-defined demo_run function
+# Entry point: parse args, then either run or record.
 demo_main() {
   demo_args "$@"
 
   if [[ "$RECORD" != "true" ]]; then
     demo_run
-    exit
+    return
   fi
 
-  # Ensure output directory exists
   mkdir -p "$(dirname "$OUTPUT_FILE")"
 
-  # Record the demo
+  # Re-invoke this exact script (without --record) inside asciinema.
+  # Asciinema allocates a PTY for its --command, so /dev/tty will be
+  # available and the interactive prompts will work correctly.
   asciinema rec "$OUTPUT_FILE" \
     --overwrite \
-    --command "$0"
+    --command "INTERACTIVE=true $0"
 
   echo "To play back: asciinema play $OUTPUT_FILE"
 }
