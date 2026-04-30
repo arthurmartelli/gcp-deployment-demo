@@ -8,6 +8,7 @@ RECORD="${RECORD:-false}"
 NO_ANIMATION="${NO_ANIMATION:-false}"
 OUTPUT_FILE="${OUTPUT_FILE:-demos/demo.cast}"
 WAIT="${WAIT:-1}"
+DRY_RUN="${DRY_RUN:-false}"
 
 # Help & Argument Parsing -----------------------------------------------------
 demo_help() {
@@ -17,7 +18,8 @@ demo_help() {
   echo "Options:"
   echo "  -i, --interactive    Run in interactive mode for live demos"
   echo "  -r, --record         Record demo with asciinema"
-  echo "  -n, --no-animation   Disable typing animation (instant output)"
+  echo "  -n, --dry-run        Show commands without executing"
+  echo "  -N, --no-animation   Disable typing animation (instant output)"
   echo "  -o, --output FILE    Output file for recording (default: $OUTPUT_FILE)"
   echo "  -h, --help           Show this help message"
 }
@@ -25,11 +27,12 @@ demo_help() {
 demo_args() {
   while [[ $# -gt 0 ]]; do
     case $1 in
-      -i | --interactive) INTERACTIVE=true;  shift   ;;
-      -r | --record)      RECORD=true;       shift   ;;
-      -n | --no-animation) NO_ANIMATION=true; shift  ;;
-      -o | --output)      OUTPUT_FILE="$2";  shift 2 ;;
-      -h | --help)        demo_help "$0";    exit 0  ;;
+      -i | --interactive)  INTERACTIVE=true;  shift   ;;
+      -r | --record)       RECORD=true;       shift   ;;
+      -n | --dry-run)      DRY_RUN=true;      shift   ;;
+      -N | --no-animation) NO_ANIMATION=true; shift  ;;
+      -o | --output)       OUTPUT_FILE="$2";  shift 2 ;;
+      -h | --help)         demo_help "$0";    exit 0  ;;
       *)
         echo "Unknown option: $1"
         echo "Use -h or --help for usage information"
@@ -58,7 +61,7 @@ demo_type() {
   local delay="${2:-0.03}"
 
   if [[ "$NO_ANIMATION" == "true" ]]; then
-    echo "$text"
+    echo -e "$text"
   else
     for ((i = 0; i < ${#text}; i++)); do
       printf '%s' "${text:$i:1}"
@@ -101,7 +104,11 @@ demo_invoke() {
     sleep "$WAIT"
   fi
 
-  eval "$command"
+  if [[ "$DRY_RUN" == "true" ]]; then
+    echo "[DRY RUN] $command"
+  else
+    eval "$command"
+  fi
 
   if [[ "$INTERACTIVE" == "true" ]]; then
     demo_press_enter "to continue"

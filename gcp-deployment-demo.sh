@@ -10,10 +10,6 @@ IMAGE_BASE="$REGION-docker.pkg.dev/$DEVSHELL_PROJECT_ID/devops-demo"
 IMAGE_APP="$IMAGE_BASE/app" # single image name — versioned per section (v0.0, v0.1, v0.2)
 SECTION=""
 
-# =============================================================================
-# SECTIONS
-# =============================================================================
-
 # --- Setup -------------------------------------------------------------------
 section_setup() {
   demo_type "=== $SECTION / 6  SETUP ==="
@@ -173,13 +169,14 @@ section_gke_cluster() {
   demo_type "Autopilot is the recommended default unless you need low-level node control."
   demo_wait "Creating the Autopilot cluster — this typically takes 5-10 minutes, grab a coffee"
 
-  demo_wait gcloud container --project "$DEVSHELL_PROJECT_ID" clusters create-auto autopilot-cluster-1 \
-    --region "$REGION" \
-    --release-channel regular \
-    --network "projects/$DEVSHELL_PROJECT_ID/global/networks/default" \
-    --subnetwork "projects/$DEVSHELL_PROJECT_ID/regions/$REGION/subnetworks/default" \
-    --cluster-ipv4-cidr /17 \
-    --binauthz-evaluation-mode=DISABLED
+  demo_type "Running cluster creation command:"
+  demo_type "  gcloud container --project \"$DEVSHELL_PROJECT_ID\" clusters create-auto autopilot-cluster-1
+                --region \"$REGION\"
+                --release-channel regular
+                --network \"projects/$DEVSHELL_PROJECT_ID/global/networks/default\"
+                --subnetwork \"projects/$DEVSHELL_PROJECT_ID/regions/$REGION/subnetworks/default\"
+                --cluster-ipv4-cidr /17
+                --binauthz-evaluation-mode=DISABLED"
 
   demo_type "Cluster is ready. Configure kubectl to point at it."
   demo_type "get-credentials writes a kubeconfig entry — all kubectl commands now target this cluster."
@@ -207,7 +204,7 @@ section_deploy_gke() {
 
   cd "$APP_DIR" || exit
 
-  demo_type "Give this version its own title so it's recognisable in the browser"
+  demo_type "Give this version its own title so it's recognizable in the browser"
   demo_invoke grep -n title main.py
   sed -i '8c\    model = {"title": "Hello GKE"}' "$APP_DIR/main.py"
   demo_invoke grep -n title main.py
@@ -286,9 +283,9 @@ section_deploy_gke() {
 
 demo_run() {
   clear
-  echo "╔══════════════════════════════════════════════════════╗"
-  echo "║         Demo: Deploying Projects on GCP              ║"
-  echo "╚══════════════════════════════════════════════════════╝"
+  echo "╔══════════════════════════════════════════════════════════════════════════════╗"
+  echo "║                        Demo: Deploying Projects on GCP                       ║"
+  echo "╚══════════════════════════════════════════════════════════════════════════════╝"
   demo_type "Project : $DEVSHELL_PROJECT_ID"
   demo_type "Region  : $REGION"
   demo_type ""
