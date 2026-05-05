@@ -1,6 +1,6 @@
 # GCP Deployment Demo
 
-Simple deployment demo to create an application in App Engine, Cloud Run, and GKE
+Simple deployment demo to create an application in App Engine and GKE
 
 ```bash
 export REGION=""

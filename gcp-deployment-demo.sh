@@ -7,12 +7,12 @@ REGION="${REGION?Please set the REGION environment variable to a GCP region (e.g
 DEVSHELL_PROJECT_ID="${DEVSHELL_PROJECT_ID:-$(gcloud config get-value project 2>/dev/null)}"
 APP_DIR="$(cd "$(dirname "$0")/app" && pwd)"
 IMAGE_BASE="$REGION-docker.pkg.dev/$DEVSHELL_PROJECT_ID/devops-demo"
-IMAGE_APP="$IMAGE_BASE/app" # single image name — versioned per section (v0.0, v0.1, v0.2)
+IMAGE_APP="$IMAGE_BASE/app" # single image name — versioned per section (v0.0, v0.2)
 SECTION=""
 
 # --- Setup -------------------------------------------------------------------
 section_setup() {
-  demo_type "=== $SECTION / 6  SETUP ==="
+  demo_type "=== $SECTION / 5  SETUP ==="
   demo_type "Goal: confirm identity, pull the lab repo, and understand the app we'll deploy."
   demo_type "First, verify which account is active in this shell"
   demo_invoke gcloud auth list
@@ -43,7 +43,7 @@ section_setup() {
 # --- App Engine --------------------------------------------------------------
 section_app_engine() {
   demo_type ""
-  demo_type "=== $SECTION / 6  APP ENGINE ==="
+  demo_type "=== $SECTION / 5  APP ENGINE ==="
   demo_type "App Engine is Google's fully-managed PaaS."
   demo_type "You ship code + a tiny config file; GCP handles servers, OS patches, and scaling."
   demo_type "No Dockerfile, no port forwarding, no capacity planning required."
@@ -85,7 +85,7 @@ section_app_engine() {
 # --- Artifact Registry + Cloud Build -----------------------------------------
 section_build_and_push() {
   demo_type ""
-  demo_type "=== $SECTION / 6  ARTIFACT REGISTRY + CLOUD BUILD ==="
+  demo_type "=== $SECTION / 5  ARTIFACT REGISTRY + CLOUD BUILD ==="
   demo_type "From here on, GCP services need to pull images from somewhere."
   demo_type "Artifact Registry is Google's managed registry for containers (replaces Container Registry)."
   demo_type "Cloud Build compiles and pushes images in the cloud — no local Docker daemon needed."
@@ -111,58 +111,10 @@ section_build_and_push() {
   demo_wait "Image available at: $IMAGE_APP:v0.0"
 }
 
-# --- Cloud Run ---------------------------------------------------------------
-section_cloud_run() {
-  demo_type ""
-  demo_type "=== $SECTION / 6  CLOUD RUN ==="
-  demo_type "Cloud Run runs stateless containers on demand — no cluster, no nodes, no ops."
-  demo_type "It scales to zero when idle (you're billed nothing) and back up in milliseconds."
-  demo_type "Key constraint: containers must be stateless — local disk is ephemeral."
-  demo_wait "Deploy the same Flask app as a Cloud Run service"
-
-  cd "$APP_DIR" || exit
-
-  demo_type "Give this version its own title so it's recognisable in the browser"
-  demo_invoke grep -n title main.py
-  sed -i '8c\    model = {"title": "Hello Cloud Run"}' "$APP_DIR/main.py"
-  demo_invoke grep -n title main.py
-
-  demo_type "Build a dedicated image for Cloud Run — same source, new tag"
-  demo_invoke gcloud builds submit --tag "$IMAGE_APP:v0.1" .
-
-  demo_type "Why deploy by digest instead of tag?"
-  demo_type "  Tags are mutable — 'v0.1' can be overwritten at any time."
-  demo_type "  A digest (sha256:...) is a cryptographic hash of the image layers."
-  demo_type "  Deploying by digest guarantees you run the exact image you tested."
-  demo_wait "Fetch the digest of the image we just pushed"
-  demo_invoke gcloud container images list-tags "$IMAGE_APP" \
-    --filter="tags=v0.1" \
-    --format='get(digest)' --limit=1
-  image_digest=$(gcloud container images list-tags "$IMAGE_APP" \
-    --filter="tags=v0.1" \
-    --format='get(digest)' --limit=1)
-
-  demo_type "Flags worth knowing:"
-  demo_type "  --allow-unauthenticated  public HTTPS endpoint, no auth token needed"
-  demo_type "  --max-instances=6        caps horizontal scale to control runaway costs"
-  demo_type "  --cpu-boost              grants extra CPU during cold starts to cut latency"
-  demo_wait "Deploy — the output will include a public Service URL to test right away"
-  demo_invoke gcloud run deploy hello-cloud-run \
-    --image="$IMAGE_APP@$image_digest" \
-    --allow-unauthenticated \
-    --port=8080 \
-    --max-instances=6 \
-    --cpu-boost \
-    --region="$REGION" \
-    --project="$DEVSHELL_PROJECT_ID"
-  demo_type "Cloud Run printed a Service URL above — open it to confirm 'Hello Cloud Run'."
-  demo_wait "Open the URL, then continue"
-}
-
 # --- GKE Autopilot -----------------------------------------------------------
 section_gke_cluster() {
   demo_type ""
-  demo_type "=== $SECTION / 6  GKE AUTOPILOT ==="
+  demo_type "=== $SECTION / 5  GKE AUTOPILOT ==="
   demo_type "GKE has two modes:"
   demo_type "  Standard  — you manage node pools (VM size, count, upgrades)"
   demo_type "  Autopilot — Google manages nodes; you declare Pods and pay per Pod, not per VM"
@@ -193,7 +145,7 @@ section_gke_cluster() {
 # --- Deploy to GKE -----------------------------------------------------------
 section_deploy_gke() {
   demo_type ""
-  demo_type "=== $SECTION / 6  DEPLOY TO KUBERNETES ==="
+  demo_type "=== $SECTION / 5  DEPLOY TO KUBERNETES ==="
   demo_type "Kubernetes is declarative: we describe desired state in a YAML manifest."
   demo_type "The control plane continuously reconciles actual state towards it."
   demo_type ""
@@ -289,12 +241,11 @@ demo_run() {
   demo_type "Project : $DEVSHELL_PROJECT_ID"
   demo_type "Region  : $REGION"
   demo_type ""
-  demo_type "We'll deploy the same Flask app three different ways and compare the trade-offs:"
+  demo_type "We'll deploy the same Flask app two different ways and compare the trade-offs:"
   demo_type "  §2  App Engine    — PaaS, minimal config, built-in traffic splitting"
-  demo_type "  §4  Cloud Run     — serverless containers, scales to zero, per-request billing"
-  demo_type "  §6  GKE Autopilot — full Kubernetes, managed nodes, most operational flexibility"
+  demo_type "  §5  GKE Autopilot — full Kubernetes, managed nodes, most operational flexibility"
   demo_type ""
-  demo_wait "Sections §1, §3, and §5 are supporting steps (setup, image build, cluster creation)."
+  demo_wait "Sections §1, §3, and §4 are supporting steps (setup, image build, cluster creation)."
 
   SECTION="1"
   clear
@@ -307,11 +258,8 @@ demo_run() {
   section_build_and_push
   SECTION="4"
   clear
-  section_cloud_run
-  SECTION="5"
-  clear
   section_gke_cluster
-  SECTION="6"
+  SECTION="5"
   clear
   section_deploy_gke
 
@@ -320,10 +268,9 @@ demo_run() {
   demo_type ""
   demo_type "Trade-off summary:"
   demo_type "  App Engine    + Simplest config  + Traffic splitting built-in  - Less control"
-  demo_type "  Cloud Run     + No infra at all  + Scales to zero              - Stateless only"
   demo_type "  GKE Autopilot + Full K8s power   + No node ops                 - Steeper learning curve"
   demo_type ""
-  demo_type "All three run the same code — the choice depends on your operational requirements."
+  demo_type "Both run the same code — the choice depends on your operational requirements."
   demo_wait "Explore the console and the live endpoints, then clean up when done:
   gcloud projects delete $DEVSHELL_PROJECT_ID"
 }
